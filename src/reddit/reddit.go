@@ -7,23 +7,47 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 )
 
-// Function used by outside code. Get list of most popular ticker symbols
-func getTickers() []postAPIResponse {
+//GetTickers used by outside code. Get list of most popular ticker symbols
+func GetTickers() []string {
 
 	//list of subreddits to use
-	subreddits := []string{"wallstreetbets", "pennystocks"}
+	subreddits := []string{"wallstreetbets", "pennystocks", "RobinHoodPennyStocks"}
 	data := redditAPICall(subreddits)
+	tickers := formatTickerData(data)
 
-	fmt.Println(data)
-	return data
+	return tickers
+}
+
+func formatTickerData(data []postAPIResponse) []string {
+	var tickers []string
+	for _, subreddit := range data {
+		for _, title := range subreddit.Data.Children {
+			tickIndex := strings.Index(title.Data.Title, "$")
+			if tickIndex > -1 && unicode.IsLetter(rune(title.Data.Title[tickIndex+1])) {
+				x := title.Data.Title[tickIndex+1:]
+				var breakChar int
+				for char := range x {
+					if !unicode.IsLetter(rune(x[char])) {
+						breakChar = char
+						break
+					}
+				}
+				final := x[:breakChar]
+				tickers = append(tickers, final)
+			}
+		}
+	}
+	return tickers
 }
 
 func redditAPICall(titles []string) []postAPIResponse {
 
 	//number of posts per subreddit
-	numOfPosts := 8
+	numOfPosts := 50
 
 	var subreddits []postAPIResponse
 	for i := 0; i < len(titles); i++ {
