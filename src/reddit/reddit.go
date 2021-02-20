@@ -6,41 +6,52 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // Function used by outside code. Get list of most popular ticker symbols
-func getTickers() postAPIResponse {
+func getTickers() []postAPIResponse {
 
-	data := redditAPICall()
+	//list of subreddits to use
+	subreddits := []string{"wallstreetbets", "pennystocks"}
+	data := redditAPICall(subreddits)
 
-	s, _ := formatPosts([]byte(data))
-
-	fmt.Println(s)
-	return *s
+	fmt.Println(data)
+	return data
 }
 
-func redditAPICall() []byte {
+func redditAPICall(titles []string) []postAPIResponse {
 
-	subreddits := []string{"wallstreetbets"}
+	//number of posts per subreddit
+	numOfPosts := 8
 
-	client := &http.Client{}
-	var URL = "https://www.reddit.com/r/" + subreddits[0] + "/new.json?limit=2"
-	req, err := http.NewRequest("GET", URL, nil)
-	req.Header.Add("User-Agent", "golang:Paper-Diamonds:v0.0.0 (by /u/dfiu65)")
-	res, err1 := client.Do(req)
+	var subreddits []postAPIResponse
+	for i := 0; i < len(titles); i++ {
 
-	if err != nil {
-		log.Fatal(err)
+		//open client
+		client := &http.Client{}
+		var URL = "https://www.reddit.com/r/" + titles[i] + "/new.json?limit=" + strconv.Itoa(numOfPosts)
+		req, err := http.NewRequest("GET", URL, nil)
+		//set user header
+		req.Header.Add("User-Agent", "golang:Paper-Diamonds:v0.0.0 (by /u/dfiu65)")
+		res, err1 := client.Do(req)
+
+		//stop on errors
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err1 != nil {
+			log.Fatal(err1)
+		}
+
+		//read data
+		data, _ := ioutil.ReadAll(res.Body)
+
+		s, _ := formatPosts([]byte(data))
+
+		subreddits = append(subreddits, *s)
 	}
-
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-
-	data, _ := ioutil.ReadAll(res.Body)
-
-	return data
-
+	return subreddits
 }
 
 type post struct {
