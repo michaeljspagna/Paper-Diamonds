@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -23,7 +24,7 @@ func GetTickers() []string {
 }
 
 func formatTickerData(data []postAPIResponse) []string {
-	var tickers []string
+	tickers := make(map[string]int)
 	for _, subreddit := range data {
 		for _, title := range subreddit.Data.Children {
 			tickIndex := strings.Index(title.Data.Title, "$")
@@ -37,17 +38,41 @@ func formatTickerData(data []postAPIResponse) []string {
 					}
 				}
 				final := x[:breakChar]
-				tickers = append(tickers, final)
+				final = strings.ToUpper(final)
+				if tickers[final] == 0 {
+					tickers[final] = 1
+				} else {
+					tickers[final]++
+				}
 			}
 		}
 	}
-	return tickers
+	return sortTickersByVolume(tickers)
+}
+
+func sortTickersByVolume(values map[string]int) []string {
+	type kv struct {
+		Key   string
+		Value int
+	}
+	var ss []kv
+	for k, v := range values {
+		ss = append(ss, kv{k, v})
+	}
+	sort.Slice(ss, func(i, j int) bool {
+		return ss[i].Value > ss[j].Value
+	})
+	ranked := make([]string, len(values))
+	for i, kv := range ss {
+		ranked[i] = kv.Key
+	}
+	return ranked
 }
 
 func redditAPICall(titles []string) []postAPIResponse {
 
 	//number of posts per subreddit
-	numOfPosts := 50
+	numOfPosts := 500
 
 	var subreddits []postAPIResponse
 	for i := 0; i < len(titles); i++ {
