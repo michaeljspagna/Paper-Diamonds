@@ -24,30 +24,61 @@ func GetTickers() []string {
 }
 
 func formatTickerData(data []postAPIResponse) []string {
-	tickers := make(map[string]int)
+	tickerList := make(map[string]int)
 	for _, subreddit := range data {
-		for _, title := range subreddit.Data.Children {
-			tickIndex := strings.Index(title.Data.Title, "$")
-			if tickIndex > -1 && unicode.IsLetter(rune(title.Data.Title[tickIndex+1])) {
-				x := title.Data.Title[tickIndex+1:]
-				var breakChar int
-				for char := range x {
-					if !unicode.IsLetter(rune(x[char])) {
-						breakChar = char
-						break
-					}
-				}
-				final := x[:breakChar]
-				final = strings.ToUpper(final)
-				if tickers[final] == 0 {
-					tickers[final] = 1
+		for _, post := range subreddit.Data.Children {
+
+			titleTickers := parseStringToTickers(post.Data.Title)
+			for _, ticker := range titleTickers {
+				if tickerList[ticker] == 0 {
+					tickerList[ticker] = 1
 				} else {
-					tickers[final]++
+					tickerList[ticker]++
 				}
 			}
+			messageTickers := parseStringToTickers(post.Data.Message)
+			for _, ticker := range messageTickers {
+				if tickerList[ticker] == 0 {
+					tickerList[ticker] = 1
+				} else {
+					tickerList[ticker]++
+				}
+			}
+
 		}
 	}
-	return sortTickersByVolume(tickers)
+	fmt.Println(tickerList)
+
+	return sortTickersByVolume(tickerList)
+}
+
+func parseStringToTickers(data string) []string {
+
+	var tickers []string
+
+	var tickIndexes []int
+	for i, c := range data {
+		if string(c) == "$" {
+			tickIndexes = append(tickIndexes, i)
+		}
+	}
+
+	for _, tickIndex := range tickIndexes {
+		if tickIndex > -1 && unicode.IsLetter(rune(data[tickIndex+1])) {
+			x := data[tickIndex+1:]
+			var breakChar int
+			for char := range x {
+				if !unicode.IsLetter(rune(x[char])) {
+					breakChar = char
+					break
+				}
+			}
+			final := x[:breakChar]
+			final = strings.ToUpper(final)
+			tickers = append(tickers, final)
+		}
+	}
+	return tickers
 }
 
 func sortTickersByVolume(values map[string]int) []string {
@@ -106,6 +137,7 @@ func redditAPICall(titles []string) []postAPIResponse {
 type post struct {
 	Subreddit string `json:"subreddit"`
 	Title     string `json:"title"`
+	Message   string `json:"selftext"`
 }
 
 type postResponse struct {
